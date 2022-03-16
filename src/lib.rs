@@ -1,15 +1,3 @@
-pub mod error;
-mod socket;
-
-use error::SrtError;
-use libsrt_sys as srt;
-
-use futures::{
-    future::Future,
-    io::{AsyncRead, AsyncWrite},
-    task::{Context, Poll},
-};
-
 use std::{
     convert::TryInto,
     io::{self, Read, Write},
@@ -21,10 +9,23 @@ use std::{
     thread,
 };
 
+use futures::{
+    future::Future,
+    io::{AsyncRead, AsyncWrite},
+    task::{Context, Poll},
+};
+use libsrt_sys as srt;
+
+use error::SrtError;
 pub use socket::{
     SrtCongestionController, SrtKmState, SrtSocket, SrtSocketStatus, SrtTransmissionType,
 };
+
 use crate::socket::RecvMsgCtrl;
+
+pub mod error;
+mod socket;
+pub mod statistics;
 
 type Result<T> = std::result::Result<T, SrtError>;
 
@@ -501,7 +502,7 @@ impl SrtBuilder {
 }
 
 pub struct SrtAsyncStream {
-    socket: SrtSocket,
+    pub socket: SrtSocket,
 }
 
 impl SrtAsyncStream {
@@ -633,7 +634,7 @@ impl SrtAsyncStream {
             state: Some(RecvMsg2Inner {
                 socket: self.socket,
                 buf,
-            })
+            }),
         }
     }
 }
@@ -646,14 +647,17 @@ struct RecvMsg2Inner<T> {
     buf: T,
 }
 impl<T> Future for RecvMsg2<T>
-    where
-        T: AsMut<[u8]> + std::marker::Unpin,
+where
+    T: AsMut<[u8]> + std::marker::Unpin,
 {
     type Output = Result<(usize, RecvMsgCtrl)>;
 
     fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
-        let ref mut inner =
-            self.get_mut().state.as_mut().expect("RecvMsg2 polled after completion");
+        let ref mut inner = self
+            .get_mut()
+            .state
+            .as_mut()
+            .expect("RecvMsg2 polled after completion");
         match inner.socket.recvmsg2(inner.buf.as_mut()) {
             Ok((size, msg_ctrl)) => Poll::Ready(Ok((size, msg_ctrl))),
             Err(e) => match e {
@@ -891,7 +895,7 @@ impl Future for ConnectFuture {
 }
 impl Drop for ConnectFuture {
     fn drop(&mut self) {
-        self.socket.take().map(|sock| sock.close() );
+        self.socket.take().map(|sock| sock.close());
     }
 }
 
@@ -930,7 +934,9 @@ impl SrtAsyncBuilder {
         socket.set_send_blocking(false)?;
         socket.connect(remote)?;
         socket.set_receive_blocking(false)?;
-        Ok(ConnectFuture { socket: Some(socket) })
+        Ok(ConnectFuture {
+            socket: Some(socket),
+        })
     }
     pub fn listen<A: ToSocketAddrs>(self, addr: A, backlog: i32) -> Result<SrtAsyncListener> {
         let socket = SrtSocket::new()?;
@@ -946,7 +952,9 @@ impl SrtAsyncBuilder {
         socket.set_send_blocking(false)?;
         socket.rendezvous(local, remote)?;
         socket.set_receive_blocking(false)?;
-        Ok(ConnectFuture { socket: Some(socket) })
+        Ok(ConnectFuture {
+            socket: Some(socket),
+        })
     }
 }
 
@@ -1301,18 +1309,20 @@ impl Drop for Epoll {
 
 #[cfg(test)]
 mod tests {
-    use crate as srt;
-    use futures::{
-        executor::block_on,
-        future,
-        io::{AsyncReadExt, AsyncWriteExt},
-    };
     use std::{
         io::{Read, Write},
         net::SocketAddr,
         sync::mpsc,
         thread,
     };
+
+    use futures::{
+        executor::block_on,
+        future,
+        io::{AsyncReadExt, AsyncWriteExt},
+    };
+
+    use crate as srt;
 
     #[test]
     fn test_ipv6() {
