@@ -1,5 +1,6 @@
 /target
 /libsrt-sys/target
 Cargo.lock
+/.idea
 
 .vscode

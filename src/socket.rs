@@ -5,6 +5,7 @@ use libsrt_sys as srt;
 use os_socketaddr::{self, OsSocketAddr};
 use srt::sockaddr;
 
+use std::num::NonZeroI64;
 use std::{
     convert::TryInto,
     ffi::c_void,
@@ -13,7 +14,6 @@ use std::{
     net::{SocketAddr, ToSocketAddrs},
     os::raw::{c_char, c_int},
 };
-use std::num::NonZeroI64;
 
 #[cfg(target_family = "unix")]
 use libc::linger;
@@ -69,13 +69,13 @@ impl SrtSocket {
     pub fn rendezvous<A: ToSocketAddrs>(&self, local: A, remote: A) -> Result<()> {
         let local_addr;
         if let Ok(mut addr) = local.to_socket_addrs() {
-            local_addr = addr.next()
+            local_addr = addr.next();
         } else {
             return Err(SrtError::SockFail);
         };
         let remote_addr;
         if let Ok(mut addr) = remote.to_socket_addrs() {
-            remote_addr = addr.next()
+            remote_addr = addr.next();
         } else {
             return Err(SrtError::SockFail);
         };
@@ -213,8 +213,14 @@ impl SrtSocket {
             grpdata: std::ptr::null_mut() as *mut libsrt_sys::SRT_SOCKGROUPDATA,
             grpdata_size: 0,
         };
-        let result =
-            unsafe { srt::srt_recvmsg2(self.id, buf as *mut [u8] as *mut c_char, buf.len() as i32, &mut msg_ctl as *mut _) };
+        let result = unsafe {
+            srt::srt_recvmsg2(
+                self.id,
+                buf as *mut [u8] as *mut c_char,
+                buf.len() as i32,
+                &mut msg_ctl as *mut _,
+            )
+        };
         if result == -1 {
             Err(error::get_last_error())
         } else {
@@ -224,8 +230,8 @@ impl SrtSocket {
                     src_time: NonZeroI64::new(msg_ctl.srctime),
                     pkt_seq: msg_ctl.pktseq,
                     msg_no: msg_ctl.msgno,
-                    _priv: ()
-                }
+                    _priv: (),
+                },
             ))
         }
     }
