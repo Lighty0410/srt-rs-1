@@ -16,7 +16,7 @@ async fn main() {
         .unwrap();
 
     let mut statistics = Statistics::new(connect.socket.id);
-    let task = tokio::spawn(async move {
+    let statistics_task = tokio::spawn(async move {
         loop {
             sleep(Duration::from_secs(1)).await;
             statistics.set().unwrap();
@@ -26,7 +26,7 @@ async fn main() {
     let mut buf = [0; 1316];
     loop {
         if let Err(e) = connect.read(&mut buf).await {
-            task.abort();
+            statistics_task.abort();
         };
     }
 }
