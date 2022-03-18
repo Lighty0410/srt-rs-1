@@ -1,11 +1,10 @@
-use futures::io::Read;
-use futures::AsyncReadExt;
 use std::time::Duration;
+
+use futures::AsyncReadExt;
 use tokio::time::sleep;
 
 use srt_rs;
 use srt_rs::statistics::Statistics;
-use srt_rs::SrtAsyncStream;
 
 #[tokio::main]
 async fn main() {
