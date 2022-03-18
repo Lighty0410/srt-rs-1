@@ -793,7 +793,7 @@ impl Drop for SrtAsyncStream {
 }
 
 pub struct SrtAsyncListener {
-    socket: SrtSocket,
+    pub socket: SrtSocket,
 }
 
 impl SrtAsyncListener {

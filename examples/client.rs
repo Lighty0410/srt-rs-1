@@ -10,23 +10,24 @@ async fn main() {
     let mut connect = srt_rs::async_builder()
         .set_live_transmission_type()
         .set_receive_latency(1000)
-        .connect("0.0.0.0:0")
+        .connect("127.0.0.1:5555")
         .unwrap()
         .await
         .unwrap();
 
     let mut statistics = Statistics::new(connect.socket.id);
-    let task = tokio::spawn(async move {
+    let statistics_task = tokio::spawn(async move {
         loop {
             sleep(Duration::from_secs(1)).await;
             statistics.set().unwrap();
+            println!("received packets: {}", statistics.statistics.pktRecvTotal)
         }
     });
 
     let mut buf = [0; 1316];
     loop {
         if let Err(e) = connect.read(&mut buf).await {
-            task.abort();
+            statistics_task.abort();
         };
     }
 }
