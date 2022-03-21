@@ -1,7 +1,7 @@
 use bindgen;
 use cmake;
 
-use std::{env, path::PathBuf, path::Path};
+use std::{env, path::Path, path::PathBuf};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     if cfg!(unix) {
@@ -11,17 +11,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         {
             cfg.define("ENABLE_SHARED", "OFF");
         }
-        #[cfg(not(feature = "static"))]
-        {
-            cfg.define("ENABLE_STATIC", "OFF");
-        }
         let dst = cfg.build();
         let dst_dir = Path::new(&dst);
 
         let lib_dirs = ["lib", "lib64"]
             .iter()
-            .map(|dir| dst_dir.join(dir) )
-            .filter_map(|dir| {if dst_dir.exists() { Some(dir) } else { None }} )
+            .map(|dir| dst_dir.join(dir))
+            .filter_map(|dir| if dst_dir.exists() { Some(dir) } else { None })
             .collect::<Vec<_>>();
 
         if lib_dirs.is_empty() {
@@ -30,14 +26,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         for dir in lib_dirs {
             println!("cargo:rustc-link-search={}", dir.display());
         }
-        #[cfg(feature = "static")]
-        {
-            println!("cargo:rustc-link-lib=static=srt");
-        }
-        #[cfg(not(feature = "static"))]
-        {
-            println!("cargo:rustc-link-lib=srt");
-        }
+
+        println!("cargo:rustc-link-lib=static=srt");
     } else if cfg!(windows) {
         let dst = cmake::Config::new("libsrt")
             .generator("Visual Studio 16 2019")
