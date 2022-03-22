@@ -681,12 +681,13 @@ impl SrtSocket {
         let result = unsafe {
             srt::srt_getsockflag(
                 self.id,
-                srt::SRT_SOCKOPT::SRTO_STATE,
+                srt::SRT_SOCKOPT::SRTO_STREAMID,
                 id.as_mut_ptr() as *mut c_void,
                 &mut id_len as *mut c_int,
             )
         };
-        id.truncate(id_len as usize);
+
+        println!("ID: {}, res: {}", id, result);
         error::handle_result(id, result)
     }
     pub fn get_too_late_packet_drop(&self) -> Result<bool> {
@@ -1187,8 +1188,8 @@ impl SrtSocket {
             srt::srt_setsockflag(
                 self.id,
                 srt::SRT_SOCKOPT::SRTO_STREAMID,
-                id[..512].as_ptr() as *const c_void,
-                id[..512].len() as i32,
+                id.as_ptr() as *const c_void,
+                id.len() as i32,
             )
         };
         error::handle_result((), result)

@@ -1,18 +1,32 @@
 use futures::AsyncWriteExt;
+use srt_rs::callback::ListenerCallbackAction;
 use srt_rs::statistics::Statistics;
 use std::time::Duration;
 use tokio::time::sleep;
 
 #[tokio::main]
 async fn main() {
-    let multiplex = srt_rs::async_builder()
+    let mut multiplex = srt_rs::async_builder()
         .set_live_transmission_type()
         .set_peer_latency(1000)
         .listen("127.0.0.1:5555", 1)
         .unwrap();
 
+    // multiplex = multiplex
+    //     .with_callback(|stream_id: Option<&_>| {
+    //         println!("{:?}", stream_id);
+    //         ListenerCallbackAction::Allow {
+    //             passphrase: Some("OK".to_string()),
+    //         }
+    //     })
+    //     .unwrap();
+
+    // multiplex.socket.get_stream_id().unwrap();
+
+    // println!("{}", multiplex.socket.get_stream_id().unwrap());
+
     for (mut stream, sock_id) in multiplex.accept().await {
-        println!("client ip: {}", sock_id);
+        // println!("{}", stream.get_stream_id().unwrap().len());
 
         let mut statistics = Statistics::new(stream.socket.id);
         let stat_task = tokio::spawn(async move {
@@ -21,7 +35,6 @@ async fn main() {
                 if let Err(e) = statistics.set() {
                     println!("cannot set statistics: {}", e);
                 };
-                println!("sent packets: {}", statistics.statistics.pktSentTotal);
             }
         });
 

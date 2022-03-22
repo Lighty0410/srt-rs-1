@@ -16,6 +16,7 @@ use futures::{
 };
 use libsrt_sys as srt;
 
+use crate::callback::ListenerCallback;
 use error::SrtError;
 pub use socket::{
     SrtCongestionController, SrtKmState, SrtSocket, SrtSocketStatus, SrtTransmissionType,
@@ -23,6 +24,7 @@ pub use socket::{
 
 use crate::socket::RecvMsgCtrl;
 
+pub mod callback;
 pub mod error;
 mod socket;
 pub mod statistics;
@@ -792,11 +794,14 @@ impl Drop for SrtAsyncStream {
     }
 }
 
-pub struct SrtAsyncListener {
+pub struct SrtAsyncListener<'c> {
     pub socket: SrtSocket,
+
+    #[allow(clippy::redundant_allocation)]
+    _callback: Option<Pin<Box<Box<dyn ListenerCallback + 'c>>>>,
 }
 
-impl SrtAsyncListener {
+impl SrtAsyncListener<'_> {
     pub fn accept(&self) -> AcceptFuture {
         AcceptFuture {
             socket: self.socket,
@@ -810,7 +815,7 @@ impl SrtAsyncListener {
     }
 }
 
-impl Drop for SrtAsyncListener {
+impl Drop for SrtAsyncListener<'_> {
     fn drop(&mut self) {
         if let Err(_) = self.socket.close() {}
     }
@@ -938,12 +943,19 @@ impl SrtAsyncBuilder {
             socket: Some(socket),
         })
     }
-    pub fn listen<A: ToSocketAddrs>(self, addr: A, backlog: i32) -> Result<SrtAsyncListener> {
+    pub fn listen<A: ToSocketAddrs>(
+        self,
+        addr: A,
+        backlog: i32,
+    ) -> Result<SrtAsyncListener<'static>> {
         let socket = SrtSocket::new()?;
         self.config_socket(&socket)?;
         let socket = socket.bind(addr)?;
         socket.listen(backlog)?; // Still synchronous
-        Ok(SrtAsyncListener { socket })
+        Ok(SrtAsyncListener {
+            socket,
+            _callback: None,
+        })
     }
     pub fn rendezvous<A: ToSocketAddrs>(self, local: A, remote: A) -> Result<ConnectFuture> {
         let socket = SrtSocket::new()?;
